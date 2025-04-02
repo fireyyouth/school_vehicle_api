@@ -29,3 +29,6 @@ class User(AbstractUser):
 
 class Vehicle(models.Model):
     number = models.CharField(max_length=7, unique=True)
+
+class PassageLog(models.Model):
+    pass
