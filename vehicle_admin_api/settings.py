@@ -52,6 +52,11 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5175',
+    'http://10.57.144.167:5174'
+]
+
 ROOT_URLCONF = "vehicle_admin_api.urls"
 
 TEMPLATES = [

@@ -3,7 +3,8 @@ from ninja.schema import Schema
 from django.contrib import auth
 from ninja.errors import HttpError
 from django.contrib.auth.decorators import permission_required
-
+from .models import ParkingSpotReservation, ParkingSpot
+from collections import defaultdict
 router = Router()
 
 class LoginSchema(Schema):
@@ -72,4 +73,38 @@ from ninja.security import django_auth
 def get_passage_log(request):
     return {
         'data': generate_data()
+    }
+
+@router.get('/parking_spot', auth=django_auth)
+def get_parking_spot(request, start_time: datetime, end_time: datetime):
+    print('get_parking_spot', start_time, end_time)
+# @permission_required(['main.view_parking_spot', 'main.view_parkingspotreservation'], raise_exception=True)
+    # [amin, amax] and [bmin, bmax] overlap iff (amin <= bmax AND bmin <= amax)
+    reserved_spots = ParkingSpotReservation.objects.filter(start_time__lte=end_time, end_time__gte=start_time) \
+        .values('parking_spot') \
+        .distinct() \
+        .all()
+    reserved_spots = set(stop['parking_spot'] for stop in reserved_spots)
+    print('reserved_spots', reserved_spots)
+    data = defaultdict(list)
+    for spot in ParkingSpot.objects.all():
+        data[spot.district].append({
+            'id': spot.spot_number,
+            'reserved': spot.id in reserved_spots
+        })
+    return {
+        'data': data
+    }
+
+@router.post('/parking_spot/reserve', auth=django_auth)
+def reserve_parking_spot(request, spot_number: int, start_time: datetime, end_time: datetime):
+    print('reserve_parking_spot', spot_number, start_time, end_time)
+    ParkingSpotReservation.objects.create(
+        reserved_by=request.user,
+        parking_spot=ParkingSpot.objects.get(spot_number=spot_number),
+        start_time=start_time,
+        end_time=end_time
+    )
+    return {
+        'detail': '预约成功'
     }

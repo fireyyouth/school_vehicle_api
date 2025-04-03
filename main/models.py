@@ -32,4 +32,21 @@ class Vehicle(models.Model):
     number = models.CharField(max_length=7, unique=True)
 
 class PassageLog(models.Model):
-    pass
+    class Meta:
+        db_table = 'passage_log'
+
+class ParkingSpot(models.Model):
+    spot_number = models.IntegerField(unique=True)
+    district = models.CharField(max_length=20)
+
+    class Meta: 
+        db_table = 'parking_spot'
+
+class ParkingSpotReservation(models.Model):
+    parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.RESTRICT)
+    reserved_by = models.ForeignKey(User, on_delete=models.RESTRICT)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+
+    class Meta:
+        db_table = 'parking_spot_reservation'
