@@ -19,7 +19,11 @@ def login(request, login_info: LoginSchema):
     auth.login(request, user)
     return {
         'detail': '登录成功',
-        'username': user.username
+        'profile': {
+            'username': user.username,
+            'role': user.role,
+            'identifier': user.identifier
+        }
     }
 
 @router.post('/logout')
@@ -28,6 +32,7 @@ def logout(request):
     return {
         'detail': '退出成功',
     }
+
 
 import random
 from datetime import datetime, timedelta
