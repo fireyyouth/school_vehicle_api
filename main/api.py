@@ -79,8 +79,8 @@ def get_passage_log(request):
 def get_parking_spot(request, start_time: datetime, end_time: datetime):
     print('get_parking_spot', start_time, end_time)
 # @permission_required(['main.view_parking_spot', 'main.view_parkingspotreservation'], raise_exception=True)
-    # [amin, amax] and [bmin, bmax] overlap iff (amin <= bmax AND bmin <= amax)
-    reserved_spots = ParkingSpotReservation.objects.filter(start_time__lte=end_time, end_time__gte=start_time) \
+    # [amin, amax] and [bmin, bmax] overlap iff (amin < bmax AND bmin < amax)
+    reserved_spots = ParkingSpotReservation.objects.filter(status='active', start_time__lt=end_time, end_time__gt=start_time) \
         .values('parking_spot') \
         .distinct() \
         .all()
@@ -96,15 +96,45 @@ def get_parking_spot(request, start_time: datetime, end_time: datetime):
         'data': data
     }
 
-@router.post('/parking_spot/reserve', auth=django_auth)
+@router.post('/parking_spot/reservation', auth=django_auth)
 def reserve_parking_spot(request, spot_number: int, start_time: datetime, end_time: datetime):
     print('reserve_parking_spot', spot_number, start_time, end_time)
     ParkingSpotReservation.objects.create(
         reserved_by=request.user,
         parking_spot=ParkingSpot.objects.get(spot_number=spot_number),
         start_time=start_time,
-        end_time=end_time
+        end_time=end_time,
+        status='active'
     )
     return {
         'detail': '预约成功'
+    }
+
+@router.post('/parking_spot/reservation/{reservation_id}', auth=django_auth)
+def update_parking_reservation(request, reservation_id: int, status: str):
+    print('update_parking_reservation_status', reservation_id, status)
+    reservation = ParkingSpotReservation.objects.get(id=reservation_id)
+    reservation.status = status
+    reservation.save()
+    return {
+        'detail': '预约状态更新成功'
+    }
+
+@router.get('/parking_spot/reservation', auth=django_auth)
+def get_parking_reservation(request):
+    if request.user.role == 'admin':
+        reservations = ParkingSpotReservation.objects.all()
+    else:
+        reservations = ParkingSpotReservation.objects.filter(reserved_by=request.user)
+    return {
+        'data': [
+            {
+                'id': reservation.id,
+                'parking_spot': reservation.parking_spot.spot_number,
+                'reserved_by': reservation.reserved_by.username,
+                'start_time': reservation.start_time,
+                'end_time': reservation.end_time,
+                'status': reservation.status
+            } for reservation in reservations
+        ]
     }
