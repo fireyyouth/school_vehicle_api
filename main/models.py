@@ -11,8 +11,8 @@ class UserManager(BaseUserManager):
 
         return user
 
-    def create_superuser(self, identifier, password):
-        user = self.model(identifier=identifier, is_superuser=True, is_staff=True)
+    def create_superuser(self, identifier, password, role, username):
+        user = self.model(identifier=identifier, role=role, username=username, is_superuser=True, is_staff=True)
         user.set_password(password)
         user.save()
 
@@ -33,8 +33,26 @@ class User(AbstractUser):
 
 class Vehicle(models.Model):
     number = models.CharField(max_length=7, unique=True)
+    owner = models.ForeignKey(User, on_delete=models.RESTRICT)
+    vehicle_type = models.CharField(max_length=20)
+    brand = models.CharField(max_length=20)
+    register_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'vehicle'
+
+    def __str__(self) -> str:
+        return f'{self.number} {self.owner}'
+
 
 class PassageLog(models.Model):
+    vehicle_number = models.CharField(max_length=20)
+    vehicle_type = models.CharField(max_length=20)
+    gate = models.CharField(max_length=20)
+    direction = models.CharField(max_length=20)
+    create_time = models.DateTimeField()
+
     class Meta:
         db_table = 'passage_log'
 
@@ -50,10 +68,12 @@ class ParkingSpot(models.Model):
 
 class ParkingSpotReservation(models.Model):
     parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.RESTRICT)
-    reserved_by = models.ForeignKey(User, on_delete=models.RESTRICT)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.RESTRICT)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     status = models.CharField(max_length=20)
+    create_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'parking_spot_reservation'

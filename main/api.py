@@ -3,8 +3,10 @@ from ninja.schema import Schema
 from django.contrib import auth
 from ninja.errors import HttpError
 from django.contrib.auth.decorators import permission_required
-from .models import ParkingSpotReservation, ParkingSpot
+from .models import ParkingSpotReservation, ParkingSpot, Vehicle, PassageLog
+from django.db.utils import IntegrityError
 from collections import defaultdict
+
 router = Router()
 
 class LoginSchema(Schema):
@@ -38,42 +40,8 @@ def logout(request):
 import random
 from datetime import datetime, timedelta
 
-def generate_data():
-    labels = []
-    data = []
-    now = datetime.now().replace(minute=0, second=0, microsecond=0)
-
-    for i in range(24 * 30):  # Generate data for a month
-        time = now - timedelta(hours=(24 * 30 - 1 - i))
-        formatted_time = time.strftime('%m-%d %H:00')
-        labels.append(formatted_time)
-        data.append(random.randint(0, 99))
-
-    chart_data = {
-        "labels": labels,
-        "datasets": [
-            {
-                "label": "Count",
-                "backgroundColor": "rgba(75, 192, 192, 0.5)",
-                "borderColor": "rgba(75, 192, 192, 1)",
-                "borderWidth": 2,
-                "hoverBackgroundColor": "rgba(75, 192, 192, 0.8)",
-                "hoverBorderColor": "rgba(75, 192, 192, 1)",
-                "data": data
-            }
-        ]
-    }
-
-    return chart_data
 
 from ninja.security import django_auth
-
-@router.get('/passagelog', auth=django_auth)
-@permission_required('main.view_passagelog', raise_exception=True)
-def get_passage_log(request):
-    return {
-        'data': generate_data()
-    }
 
 @router.get('/parking_spot', auth=django_auth)
 def get_parking_spot(request, start_time: datetime, end_time: datetime):
@@ -97,10 +65,13 @@ def get_parking_spot(request, start_time: datetime, end_time: datetime):
     }
 
 @router.post('/parking_spot/reservation', auth=django_auth)
-def reserve_parking_spot(request, spot_number: int, start_time: datetime, end_time: datetime):
-    print('reserve_parking_spot', spot_number, start_time, end_time)
+def reserve_parking_spot(request, spot_number: int, start_time: datetime, end_time: datetime, vehicle_id: int):
+    print('reserve_parking_spot', spot_number, start_time, end_time, vehicle_id)
+    vehicle = Vehicle.objects.get(id=vehicle_id)
+    if vehicle.owner != request.user:
+        raise HttpError(403, '无权限')
     ParkingSpotReservation.objects.create(
-        reserved_by=request.user,
+        vehicle=vehicle,
         parking_spot=ParkingSpot.objects.get(spot_number=spot_number),
         start_time=start_time,
         end_time=end_time,
@@ -114,6 +85,8 @@ def reserve_parking_spot(request, spot_number: int, start_time: datetime, end_ti
 def update_parking_reservation(request, reservation_id: int, status: str):
     print('update_parking_reservation_status', reservation_id, status)
     reservation = ParkingSpotReservation.objects.get(id=reservation_id)
+    if reservation.vehicle.owner != request.user:
+        raise HttpError(403, '无权限')
     reservation.status = status
     reservation.save()
     return {
@@ -125,16 +98,76 @@ def get_parking_reservation(request):
     if request.user.role == 'admin':
         reservations = ParkingSpotReservation.objects.all()
     else:
-        reservations = ParkingSpotReservation.objects.filter(reserved_by=request.user)
+        reservations = ParkingSpotReservation.objects.filter(vehicle__owner=request.user)
     return {
         'data': [
             {
                 'id': reservation.id,
                 'parking_spot': reservation.parking_spot.spot_number,
-                'reserved_by': reservation.reserved_by.username,
+                'vehicle': reservation.vehicle.number,
+                'owner': reservation.vehicle.owner.username,
                 'start_time': reservation.start_time,
                 'end_time': reservation.end_time,
                 'status': reservation.status
             } for reservation in reservations
+        ]
+    }
+
+@router.post('/vehicle', auth=django_auth)
+def register_vehicle(request, number: str, vehicle_type: str, brand: str):
+    try:
+        Vehicle.objects.create(
+            number=number,
+            vehicle_type=vehicle_type,
+            brand=brand,
+            owner=request.user
+        )
+        return {
+            'detail': '车辆注册成功'
+        }
+    except IntegrityError:
+        raise HttpError(400, '车辆已存在')
+
+@router.get('/vehicle', auth=django_auth)
+def get_vehicle(request):
+    if request.user.role == 'admin':
+        vehicles = Vehicle.objects.all()
+    else:
+        vehicles = Vehicle.objects.filter(owner=request.user)
+    return {
+        'data': [
+            {
+                'id': vehicle.id,
+                'number': vehicle.number,
+                'vehicle_type': vehicle.vehicle_type,
+                'brand': vehicle.brand,
+                'owner': vehicle.owner.username,
+                'register_time': vehicle.register_time,
+                'update_time': vehicle.update_time
+            } for vehicle in vehicles
+        ]
+    }
+
+@router.delete('/vehicle/{vehicle_id}', auth=django_auth)
+def delete_vehicle(request, vehicle_id: int):
+    vehicle = Vehicle.objects.get(id=vehicle_id)
+    vehicle.delete()
+    return {
+        'detail': '车辆删除成功'
+    }
+
+@router.get('/passage_log', auth=django_auth)
+def get_passage_log(request):
+    if request.user.role != 'admin':
+        raise HttpError(403, '无权限')
+    return {
+        'data': [
+            {
+                'vehicle_number': log.vehicle_number,
+                'vehicle_type': log.vehicle_type,
+                'gate': log.gate,
+                'direction': log.direction,
+                'create_time': log.create_time
+            } for log in PassageLog.objects.all()
         ]
     }
