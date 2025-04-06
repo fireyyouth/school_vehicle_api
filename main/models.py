@@ -91,6 +91,7 @@ class ParkingSpotReservation(models.Model):
 class VisitReservation(models.Model):
     visitor = models.ForeignKey(User, on_delete=models.RESTRICT)
     vehicle_number = models.CharField(max_length=20)
+    reason = models.TextField()
     date = models.DateField()
     status = models.CharField(max_length=20)
     create_time = models.DateTimeField(auto_now_add=True)

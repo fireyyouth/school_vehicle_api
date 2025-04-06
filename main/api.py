@@ -194,13 +194,14 @@ def get_parking_log(request):
     }
 
 @router.post('/visit_reservation', auth=django_auth)
-def create_visit_reservation(request, vehicle_number: str, date: datetime):
+def create_visit_reservation(request, vehicle_number: str, date: datetime, reason: str):
     if request.user.role != 'visitor':
         raise HttpError(403, '无权限')
     VisitReservation.objects.create(
         visitor=request.user,
         vehicle_number=vehicle_number,
         date=date,
+        reason=reason,
         status='created'
     )
     return {
@@ -233,6 +234,7 @@ def get_visit_reservation(request):
                 'visitor': reservation.visitor.username,
                 'vehicle_number': reservation.vehicle_number,
                 'date': reservation.date,
+                'reason': reservation.reason,
                 'status': reservation.status,
                 'create_time': reservation.create_time,
                 'update_time': reservation.update_time
