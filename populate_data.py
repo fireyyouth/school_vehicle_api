@@ -3,6 +3,9 @@ from django.utils import timezone
 from django.contrib.auth.models import Group
 import random
 from datetime import datetime, timedelta
+from faker import Faker
+
+fake = Faker(locale='zh_CN')
 
 def init_group():
     Group.objects.create(name='teacher').save()
@@ -10,8 +13,8 @@ def init_group():
 
 def init_user():
     User.objects.create_superuser(identifier='00000000', password='00000000', role='admin', username='管理员')
-    User.objects.create_user(identifier='00000001', password='00000001', role='teacher', username='张老师')
-    User.objects.create_user(identifier='00000002', password='00000002', role='teacher', username='李老师')
+    User.objects.create_user(identifier='00000001', password='00000001', role='teacher', username='张老师', gender='男', email=fake.email(), phone=fake.phone_number())
+    User.objects.create_user(identifier='00000002', password='00000002', role='teacher', username='李老师', gender='女', email=fake.email(), phone=fake.phone_number())
 
 def init_vehicle():
     Vehicle.objects.create(number='京A00001', owner=User.objects.get(identifier='00000001'), vehicle_type='轿车', brand='宝马')

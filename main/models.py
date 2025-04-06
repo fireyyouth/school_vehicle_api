@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 class UserManager(BaseUserManager):
 
     def create_user(self, identifier, role, username, password, **extra_fields):
-        user = self.model(identifier=identifier, role=role, username=username)
+        user = self.model(identifier=identifier, role=role, username=username, **extra_fields)
         user.set_password(password)
         user.save()
 
@@ -22,6 +22,10 @@ class User(AbstractUser):
     identifier = models.CharField(max_length=20, unique=True)
     role = models.CharField(max_length=20)
     username = models.CharField(max_length=20, null=True) # change to be not required
+    gender = models.CharField(max_length=20, null=True)
+    email = models.EmailField(null=True)
+    phone = models.CharField(max_length=20, null=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = 'identifier'
     REQUIRED_FIELDS = []
@@ -33,7 +37,7 @@ class User(AbstractUser):
 
 class Vehicle(models.Model):
     number = models.CharField(max_length=7, unique=True)
-    owner = models.ForeignKey(User, on_delete=models.RESTRICT)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
     vehicle_type = models.CharField(max_length=20)
     brand = models.CharField(max_length=20)
     register_time = models.DateTimeField(auto_now_add=True)
@@ -44,6 +48,7 @@ class Vehicle(models.Model):
 
     def __str__(self) -> str:
         return f'{self.number} {self.owner}'
+
 
 
 class PassageLog(models.Model):
@@ -69,7 +74,7 @@ class ParkingSpot(models.Model):
 class ParkingLog(models.Model):
     vehicle_number = models.CharField(max_length=20)
     vehicle_type = models.CharField(max_length=20)
-    parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.RESTRICT)
+    parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.CASCADE)
     event = models.CharField(max_length=20)
     create_time = models.DateTimeField()
 
@@ -77,8 +82,8 @@ class ParkingLog(models.Model):
         db_table = 'parking_log'
 
 class ParkingSpotReservation(models.Model):
-    parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.RESTRICT)
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.RESTRICT)
+    parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     status = models.CharField(max_length=20)
@@ -89,7 +94,7 @@ class ParkingSpotReservation(models.Model):
         db_table = 'parking_spot_reservation'
 
 class VisitReservation(models.Model):
-    visitor = models.ForeignKey(User, on_delete=models.RESTRICT)
+    visitor = models.ForeignKey(User, on_delete=models.CASCADE)
     vehicle_number = models.CharField(max_length=20)
     reason = models.TextField()
     date = models.DateField()

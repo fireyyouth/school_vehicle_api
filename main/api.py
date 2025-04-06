@@ -7,11 +7,61 @@ from .models import *
 from django.db.utils import IntegrityError
 from collections import defaultdict
 from faker import Faker
+
+from datetime import datetime, timedelta
+from ninja.security import django_auth
+
 router = Router()
 
 class LoginSchema(Schema):
     identifier: str
     password: str
+
+
+@router.get('/user', auth=django_auth)
+def get_user(request):
+    return {
+        'data': [
+            {
+                'user_id': user.id,
+                'identifier': user.identifier,
+                'username': user.username,
+                'role': user.role,
+                'gender': user.gender,
+                'email': user.email,
+                'phone': user.phone,
+                'update_time': user.update_time
+            } for user in User.objects.all() if user.role != 'admin'
+        ]
+    }
+
+@router.post('/user/{user_id}', auth=django_auth)
+def update_user(request, user_id: int, username: str, gender: str, email: str, phone: str):
+    user = User.objects.get(id=user_id)
+    user.username = username
+    user.gender = gender
+    user.email = email
+    user.phone = phone
+    user.save()
+    return {
+        'detail': '用户更新成功',
+        'profile': {
+            'user_id': user.id,
+            'identifier': user.identifier,
+            'username': user.username,
+            'gender': user.gender,
+            'email': user.email,
+            'phone': user.phone,
+        }
+    }
+
+@router.delete('/user/{user_id}', auth=django_auth)
+def delete_user(request, user_id: int):
+    user = User.objects.get(id=user_id)
+    user.delete()
+    return {
+        'detail': '用户删除成功'
+    }
 
 @router.post('/login')
 def login(request, login_info: LoginSchema, role: str):
@@ -28,9 +78,13 @@ def login(request, login_info: LoginSchema, role: str):
     return {
         'detail': '登录成功',
         'profile': {
+            'user_id': user.id,
             'username': user.username,
             'role': user.role,
-            'identifier': user.identifier
+            'identifier': user.identifier,
+            'gender': user.gender,
+            'email': user.email,
+            'phone': user.phone
         }
     }
 
@@ -42,11 +96,6 @@ def logout(request):
     }
 
 
-import random
-from datetime import datetime, timedelta
-
-
-from ninja.security import django_auth
 
 @router.get('/parking_spot', auth=django_auth)
 def get_parking_spot(request, start_time: datetime, end_time: datetime):
