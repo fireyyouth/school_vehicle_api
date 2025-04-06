@@ -3,22 +3,27 @@ from ninja.schema import Schema
 from django.contrib import auth
 from ninja.errors import HttpError
 from django.contrib.auth.decorators import permission_required
-from .models import ParkingSpotReservation, ParkingSpot, Vehicle, PassageLog
+from .models import *
 from django.db.utils import IntegrityError
 from collections import defaultdict
-
+from faker import Faker
 router = Router()
 
 class LoginSchema(Schema):
     identifier: str
     password: str
-    role: str
 
 @router.post('/login')
-def login(request, login_info: LoginSchema):
-    user = auth.authenticate(identifier=login_info.identifier, password=login_info.password)
-    if user is None:
-        raise HttpError(401, '用户名或密码错误')
+def login(request, login_info: LoginSchema, role: str):
+    if role == 'teacher':
+        user = auth.authenticate(identifier=login_info.identifier, password=login_info.password)
+        if user is None:
+            raise HttpError(401, '用户名或密码错误')
+    elif role == 'visitor':
+        user, created = User.objects.get_or_create(identifier=login_info.identifier, password='', role='visitor')
+        if created:
+            user.username = Faker(locale='zh_CN').name()
+            user.save()
     auth.login(request, user)
     return {
         'detail': '登录成功',
@@ -169,5 +174,68 @@ def get_passage_log(request):
                 'direction': log.direction,
                 'create_time': log.create_time
             } for log in PassageLog.objects.all()
+        ]
+    }
+
+@router.get('/parking_log', auth=django_auth)
+def get_parking_log(request):
+    if request.user.role != 'admin':
+        raise HttpError(403, '无权限')
+    return {
+        'data': [
+            {
+                'vehicle_number': log.vehicle_number,
+                'vehicle_type': log.vehicle_type,
+                'parking_spot': log.parking_spot.spot_number,
+                'event': log.event,
+                'create_time': log.create_time
+            } for log in ParkingLog.objects.all()
+        ]
+    }
+
+@router.post('/visit_reservation', auth=django_auth)
+def create_visit_reservation(request, vehicle_number: str, date: datetime):
+    if request.user.role != 'visitor':
+        raise HttpError(403, '无权限')
+    VisitReservation.objects.create(
+        visitor=request.user,
+        vehicle_number=vehicle_number,
+        date=date,
+        status='created'
+    )
+    return {
+        'detail': '预约成功'
+    }
+
+@router.post('/visit_reservation/{reservation_id}', auth=django_auth)
+def update_visit_reservation(request, reservation_id: int, status: str):
+    if request.user.role not in ['visitor', 'admin']:
+        raise HttpError(403, '无权限')
+    reservation = VisitReservation.objects.get(id=reservation_id)
+    reservation.status = status
+    reservation.save()
+    return {
+        'detail': '状态更新成功'
+    }
+
+@router.get('/visit_reservation', auth=django_auth)
+def get_visit_reservation(request):
+    if request.user.role == 'admin':
+        reservations = VisitReservation.objects.all()
+    elif request.user.role == 'visitor':
+        reservations = VisitReservation.objects.filter(visitor=request.user)
+    else:
+        raise HttpError(403, '无权限')
+    return {
+        'data': [
+            {
+                'id': reservation.id,
+                'visitor': reservation.visitor.username,
+                'vehicle_number': reservation.vehicle_number,
+                'date': reservation.date,
+                'status': reservation.status,
+                'create_time': reservation.create_time,
+                'update_time': reservation.update_time
+            } for reservation in reservations
         ]
     }

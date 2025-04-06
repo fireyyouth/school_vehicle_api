@@ -66,6 +66,16 @@ class ParkingSpot(models.Model):
     def __str__(self) -> str:
         return f'{self.spot_number} {self.district}'
 
+class ParkingLog(models.Model):
+    vehicle_number = models.CharField(max_length=20)
+    vehicle_type = models.CharField(max_length=20)
+    parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.RESTRICT)
+    event = models.CharField(max_length=20)
+    create_time = models.DateTimeField()
+
+    class Meta:
+        db_table = 'parking_log'
+
 class ParkingSpotReservation(models.Model):
     parking_spot = models.ForeignKey(ParkingSpot, on_delete=models.RESTRICT)
     vehicle = models.ForeignKey(Vehicle, on_delete=models.RESTRICT)
@@ -77,3 +87,17 @@ class ParkingSpotReservation(models.Model):
 
     class Meta:
         db_table = 'parking_spot_reservation'
+
+class VisitReservation(models.Model):
+    visitor = models.ForeignKey(User, on_delete=models.RESTRICT)
+    vehicle_number = models.CharField(max_length=20)
+    date = models.DateField()
+    status = models.CharField(max_length=20)
+    create_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'visit_reservation'
+
+    def __str__(self) -> str:
+        return f'{self.vehicle_number} {self.date} {self.status}'
