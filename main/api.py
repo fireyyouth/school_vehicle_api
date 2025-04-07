@@ -30,6 +30,15 @@ def get_user(request):
         'data': model_list_to_json(User.objects.exclude(role='admin'))
     }    
 
+@router.post('/user')
+def create_user(request):
+    info = json.loads(request.body)
+    user = User.objects.create_user(**info)
+    return {
+        'detail': '用户创建成功',
+        'data': model_to_dict(user)
+    }
+
 @router.post('/user/{user_id}', auth=django_auth)
 def update_user(request, user_id: int):
     info = json.loads(request.body)
@@ -47,16 +56,11 @@ def delete_user(request, user_id: int):
     }
 
 @router.post('/login')
-def login(request, login_info: LoginSchema, role: str):
-    if role == 'teacher':
-        user = auth.authenticate(identifier=login_info.identifier, password=login_info.password)
-        if user is None:
-            raise HttpError(401, '用户名或密码错误')
-    elif role == 'visitor':
-        user, created = User.objects.get_or_create(identifier=login_info.identifier, password='', role='visitor')
-        if created:
-            user.username = Faker(locale='zh_CN').name()
-            user.save()
+def login(request, login_info: LoginSchema):
+    user = auth.authenticate(identifier=login_info.identifier, password=login_info.password)
+    if user is None:
+        raise HttpError(401, '用户名或密码错误')
+
     auth.login(request, user)
     return {
         'detail': '登录成功',
