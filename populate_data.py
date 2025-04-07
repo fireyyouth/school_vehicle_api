@@ -26,6 +26,9 @@ def init_parking_spot():
     for i in range(21, 41):
         ParkingSpot.objects.create(spot_number=i, district='西校区')
 
+def init_bulletin_board():
+    BulletinBoard.objects.create(content='本条公告内容为测试使用')
+
 def generate_vehicle_number():
     return random.choice('京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁') + random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ') + str(random.randint(10000, 99999))
 
@@ -77,6 +80,7 @@ def main():
     init_user()
     init_vehicle()
     init_parking_spot()
+    init_bulletin_board()
     init_passage_log()
     print('populate done')
 

@@ -7,9 +7,15 @@ from .models import *
 from django.db.utils import IntegrityError
 from collections import defaultdict
 from faker import Faker
-
+from typing import List, Dict
 from datetime import datetime, timedelta
 from ninja.security import django_auth
+from ninja.orm import create_schema
+from django.forms.models import model_to_dict
+import json
+
+def model_list_to_json(model_list):
+    return [model_to_dict(model) for model in model_list]
 
 router = Router()
 
@@ -21,44 +27,21 @@ class LoginSchema(Schema):
 @router.get('/user', auth=django_auth)
 def get_user(request):
     return {
-        'data': [
-            {
-                'user_id': user.id,
-                'identifier': user.identifier,
-                'username': user.username,
-                'role': user.role,
-                'gender': user.gender,
-                'email': user.email,
-                'phone': user.phone,
-                'update_time': user.update_time
-            } for user in User.objects.all() if user.role != 'admin'
-        ]
-    }
+        'data': model_list_to_json(User.objects.exclude(role='admin'))
+    }    
 
 @router.post('/user/{user_id}', auth=django_auth)
-def update_user(request, user_id: int, username: str, gender: str, email: str, phone: str):
-    user = User.objects.get(id=user_id)
-    user.username = username
-    user.gender = gender
-    user.email = email
-    user.phone = phone
-    user.save()
+def update_user(request, user_id: int):
+    info = json.loads(request.body)
+    User.objects.filter(id=user_id).update(**info)
     return {
         'detail': '用户更新成功',
-        'profile': {
-            'user_id': user.id,
-            'identifier': user.identifier,
-            'username': user.username,
-            'gender': user.gender,
-            'email': user.email,
-            'phone': user.phone,
-        }
+        'data': model_to_dict(User.objects.get(id=user_id))
     }
 
 @router.delete('/user/{user_id}', auth=django_auth)
 def delete_user(request, user_id: int):
-    user = User.objects.get(id=user_id)
-    user.delete()
+    User.objects.filter(id=user_id).delete()
     return {
         'detail': '用户删除成功'
     }
@@ -77,15 +60,7 @@ def login(request, login_info: LoginSchema, role: str):
     auth.login(request, user)
     return {
         'detail': '登录成功',
-        'profile': {
-            'user_id': user.id,
-            'username': user.username,
-            'role': user.role,
-            'identifier': user.identifier,
-            'gender': user.gender,
-            'email': user.email,
-            'phone': user.phone
-        }
+        'data': model_to_dict(user)
     }
 
 @router.post('/logout')
@@ -94,7 +69,6 @@ def logout(request):
     return {
         'detail': '退出成功',
     }
-
 
 
 @router.get('/parking_spot', auth=django_auth)
@@ -289,4 +263,25 @@ def get_visit_reservation(request):
                 'update_time': reservation.update_time
             } for reservation in reservations
         ]
+    }
+
+@router.get('/bulletin_board', auth=django_auth)
+def get_bulletin_board(request):
+    bulletin = BulletinBoard.objects.first()
+    return {
+        'data': model_to_dict(bulletin),
+        'update_time': bulletin.update_time
+    }
+
+class BulletinBoardSchema(Schema):
+    content: str
+
+@router.post('/bulletin_board/{bulletin_id}', auth=django_auth)
+def update_bulletin_board(request, bulletin_id: int, body: BulletinBoardSchema):
+    bulletin = BulletinBoard.objects.get(id=bulletin_id)
+    bulletin.content = body.content
+    bulletin.save()
+    return {
+        'data': model_to_dict(bulletin),
+        'update_time': bulletin.update_time
     }

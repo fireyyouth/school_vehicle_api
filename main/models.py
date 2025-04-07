@@ -107,3 +107,7 @@ class VisitReservation(models.Model):
 
     def __str__(self) -> str:
         return f'{self.vehicle_number} {self.date} {self.status}'
+
+class BulletinBoard(models.Model):
+    content = models.TextField()
+    update_time = models.DateTimeField(auto_now=True)
