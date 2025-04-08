@@ -268,24 +268,3 @@ def get_visit_reservation(request):
             } for reservation in reservations
         ]
     }
-
-@router.get('/bulletin_board', auth=django_auth)
-def get_bulletin_board(request):
-    bulletin = BulletinBoard.objects.first()
-    return {
-        'data': model_to_dict(bulletin),
-        'update_time': bulletin.update_time
-    }
-
-class BulletinBoardSchema(Schema):
-    content: str
-
-@router.post('/bulletin_board/{bulletin_id}', auth=django_auth)
-def update_bulletin_board(request, bulletin_id: int, body: BulletinBoardSchema):
-    bulletin = BulletinBoard.objects.get(id=bulletin_id)
-    bulletin.content = body.content
-    bulletin.save()
-    return {
-        'data': model_to_dict(bulletin),
-        'update_time': bulletin.update_time
-    }

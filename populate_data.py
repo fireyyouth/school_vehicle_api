@@ -1,4 +1,5 @@
 from main.models import *
+from bulletin.models import *
 from django.utils import timezone
 from django.contrib.auth.models import Group
 import random
@@ -58,7 +59,7 @@ def init_passage_log():
     vehicle_type_weights = {
         '自行车': 5,
         '汽车': 3,
-        '摩托车': 1
+        '校车': 1
     }
     vehicle_types, weights = zip(*vehicle_type_weights.items())
 
